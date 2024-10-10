@@ -1,9 +1,9 @@
 'use strict';
 
-var os = require('os');
 var nodeStatic = require('node-static');
 var http = require('http');
 var socketIO = require('socket.io');
+const https = require('https');
 const port = process.env.PORT || 8000;
 
 var fileServer = new(nodeStatic.Server)();
@@ -51,14 +51,24 @@ io.sockets.on('connection', function(socket) {
   });
 
   socket.on('ipaddr', function() {
-    var ifaces = os.networkInterfaces();
-    for (var dev in ifaces) {
-      ifaces[dev].forEach(function(details) {
-        if (details.family === 'IPv4' && details.address !== '127.0.0.1' && details.address !== '10.10.11.176') {
-          socket.emit('ipaddr', details.address);
-        }
+    // Fetch the public IP using an external service
+    https.get('https://api.ipify.org?format=json', (resp) => {
+      let data = '';
+
+      // A chunk of data has been received.
+      resp.on('data', (chunk) => {
+        data += chunk;
       });
-    }
+
+      // The whole response has been received.
+      resp.on('end', () => {
+        const ip = JSON.parse(data).ip;
+        socket.emit('ipaddr', ip); // Emit the public IP address to the client
+      });
+
+    }).on("error", (err) => {
+      console.log("Error: " + err.message);
+    });
   });
 
   socket.on('bye', function(){
