@@ -15,10 +15,11 @@ var app = http.createServer(function(req, res) {
     if (err) {
       console.error('Error serving ' + req.url + ' - ' + err.message);
       
-      // Check if headers have already been sent
+      // Ensure headers haven't already been sent
       if (!res.headersSent) {
-        res.writeHead(err.status, err.headers);
-        res.end();
+        res.writeHead(err.status || 500, { 'Content-Type': 'text/plain' });
+        res.end('An error occurred: ' + err.message);
+        return; // Prevent further code execution
       }
     }
   });
