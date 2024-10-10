@@ -10,20 +10,20 @@ var fileServer = new(nodeStatic.Server)();
 
 // Create an HTTP server
 var app = http.createServer(function(req, res) {
-  // Handle CORS headers for all requests
-  res.writeHead(200, {
-    'Access-Control-Allow-Origin': '*', // Change this to a specific origin if needed
-    'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE',
-    'Access-Control-Allow-Credentials': true, // Allow credentials if needed
-    'Access-Control-Allow-Headers': 'Content-Type'
-  });
-
   // Serve files and handle errors properly
   fileServer.serve(req, res, function(err) {
     if (err) {
       console.error('Error serving ' + req.url + ' - ' + err.message);
       res.writeHead(err.status, err.headers);
       res.end();
+    } else {
+      // If no error, set CORS headers
+      res.writeHead(200, {
+        'Access-Control-Allow-Origin': '*', // Change this to a specific origin if needed
+        'Access-Control-Allow-Methods': 'GET,HEAD,PUT,PATCH,POST,DELETE',
+        'Access-Control-Allow-Credentials': true, // Allow credentials if needed
+        'Access-Control-Allow-Headers': 'Content-Type'
+      });
     }
   });
 }).listen(port, () => {
