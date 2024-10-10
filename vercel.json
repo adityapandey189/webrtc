@@ -22,10 +22,6 @@
       {
         "src": "/",
         "dest": "/index.html"
-      },
-      {
-        "src": "/socket.io",
-        "dest": "/index.js"
       }
     ]
   }
