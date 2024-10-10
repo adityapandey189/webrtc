@@ -6,8 +6,10 @@ var socketIO = require('socket.io');
 const cors = require('cors'); 
 const port = process.env.PORT || 8000;
 
-var fileServer = new(nodeStatic.Server)();
+// File server to serve static files
+var fileServer = new nodeStatic.Server();
 
+// Create the HTTP server
 var app = http.createServer(function(req, res) {
   // Serve files and handle errors properly
   fileServer.serve(req, res, function(err) {
@@ -21,9 +23,17 @@ var app = http.createServer(function(req, res) {
   console.log(`Server is listening on port ${port}`);
 });
 
+// Apply CORS middleware globally for all requests
+app.use(cors({
+  origin: "*",
+  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+  preflightContinue: false,
+  optionsSuccessStatus: 204
+}));
 
-
+// Initialize socket.io
 var io = socketIO.listen(app);
+
 io.sockets.on('connection', function(socket) {
 
   // Convenience function to log server messages on the client
