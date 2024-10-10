@@ -10,6 +10,11 @@ const port = process.env.PORT || 8000;
 var fileServer = new(nodeStatic.Server)();
 
 var app = http.createServer(function(req, res) {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Adjust this to specify which origins are allowed
+  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE');
+  res.setHeader('Access-Control-Allow-Credentials', true);
+
   // Serve files and handle errors properly
   fileServer.serve(req, res, function(err) {
     if (err) {
@@ -22,12 +27,7 @@ var app = http.createServer(function(req, res) {
   console.log(`Server is listening on port ${port}`);
 });
 
-app.use(cors({
-  origin: '*', // Adjust this to specify which origins are allowed
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true // Allow credentials if needed
-}));
-
+// Setup Socket.io
 var io = socketIO.listen(app);
 io.sockets.on('connection', function(socket) {
 
