@@ -15,7 +15,7 @@ var app = http.createServer(function(req, res) {
 // Add CORS configuration
 var io = socketIO.listen(app, {
   cors: {
-    origin: 'https://webrtc-g2k2ywk55-adityas-projects-8c58d81d.vercel.app', // Your allowed origin
+    origin: 'https://webrtc-two-eta.vercel.app', // Your allowed origin
     methods: ['GET', 'POST'],
     allowedHeaders: ['my-custom-header'],
     credentials: true
