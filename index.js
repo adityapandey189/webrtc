@@ -4,23 +4,13 @@ var os = require('os');
 var nodeStatic = require('node-static');
 var http = require('http');
 var socketIO = require('socket.io');
+const cors = require('cors'); 
 const port = process.env.PORT || 8000;
 
 var fileServer = new(nodeStatic.Server)();
 
+// Create an HTTP server
 var app = http.createServer(function(req, res) {
-  // Set CORS headers
-  res.setHeader('Access-Control-Allow-Origin', '*'); // Adjust this to specify which origins are allowed
-  res.setHeader('Access-Control-Allow-Methods', 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS');
-  res.setHeader('Access-Control-Allow-Credentials', true);
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    res.writeHead(204); // No Content
-    res.end();
-    return; // End the response here for OPTIONS requests
-  }
-
   // Serve files and handle errors properly
   fileServer.serve(req, res, function(err) {
     if (err) {
@@ -32,6 +22,13 @@ var app = http.createServer(function(req, res) {
 }).listen(port, () => {
   console.log(`Server is listening on port ${port}`);
 });
+
+// Use CORS middleware
+app.use(cors({
+  origin: '*', // Adjust this to specify which origins are allowed
+  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+  credentials: true // Allow credentials if needed
+}));
 
 // Setup Socket.io
 var io = socketIO.listen(app);
