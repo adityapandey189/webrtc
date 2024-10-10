@@ -1,3 +1,5 @@
+//working
+
 'use strict';
 
 var os = require('os');
@@ -5,17 +7,9 @@ var nodeStatic = require('node-static');
 var http = require('http');
 var socketIO = require('socket.io');
 const cors = require('cors'); 
-const express = require('express');
 const port = process.env.PORT || 8000;
 
 var fileServer = new(nodeStatic.Server)();
-
-var cor = express();
-cor.use(cors({
-  origin: '*', // Adjust this to specify which origins are allowed
-  methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
-  credentials: true // Allow credentials if needed
-}));
 
 var app = http.createServer(function(req, res) {
   // Serve files and handle errors properly
