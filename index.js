@@ -3,7 +3,6 @@ var os = require('os');
 var nodeStatic = require('node-static');
 var http = require('http');
 var socketIO = require('socket.io');
-const cors = require('cors'); 
 const port = process.env.PORT || 8000;
 
 // File server to serve static files
@@ -23,16 +22,15 @@ var app = http.createServer(function(req, res) {
   console.log(`Server is listening on port ${port}`);
 });
 
-// Apply CORS middleware globally for all requests
-app.use(cors({
-  origin: "*",
-  methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
-  preflightContinue: false,
-  optionsSuccessStatus: 204
-}));
-
-// Initialize socket.io
-var io = socketIO.listen(app);
+// Initialize socket.io with CORS options
+var io = socketIO(app, {
+  cors: {
+    origin: "*", // Allow any origin
+    methods: ["GET", "POST"],
+    allowedHeaders: ["my-custom-header"],
+    credentials: true
+  }
+});
 
 io.sockets.on('connection', function(socket) {
 
