@@ -8,10 +8,16 @@ const port = process.env.PORT || 8000;
 
 var fileServer = new(nodeStatic.Server)();
 var app = http.createServer(function(req, res) {
+  // Prevent headers being set multiple times
+  if (res.headersSent) {
+    console.error('Headers already sent');
+    return;
+  }
+
   // Use a callback for error handling in fileServer.serve
   fileServer.serve(req, res, function(err, result) {
     if (err) {
-      // Only attempt to send a response if headers haven't already been sent
+      // Ensure headers aren't set twice
       if (!res.headersSent) {
         res.writeHead(err.status, { 'Content-Type': 'text/plain' });
         res.end('Error serving ' + req.url + ' - ' + err.message);
