@@ -11,11 +11,11 @@ const port = process.env.IP || 8000;
 // Enable CORS for all requests
 app.use(cors());
 
-// app.use((req, res, next) => {
-//   res.header("Access-Control-Allow-Origin", "*"); // Replace * with your client URL if needed
-//   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
-//   next();
-// });
+app.use((req, res, next) => {
+  res.header("Access-Control-Allow-Origin", "*"); // Replace * with your client URL if needed
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
 
 var io = socketIO.listen(app);
 io.sockets.on('connection', function(socket) {
