@@ -14,8 +14,12 @@ var app = http.createServer(function(req, res) {
   fileServer.serve(req, res, function(err) {
     if (err) {
       console.error('Error serving ' + req.url + ' - ' + err.message);
-      res.writeHead(err.status, err.headers);
-      res.end();
+      
+      // Check if headers have already been sent
+      if (!res.headersSent) {
+        res.writeHead(err.status, err.headers);
+        res.end();
+      }
     }
   });
 }).listen(port, () => {
@@ -27,7 +31,7 @@ var io = socketIO(app, {
   cors: {
     origin: "*", // Allow any origin
     methods: ["GET", "POST"],
-    allowedHeaders: ["my-custom-header"],
+    allowedHeaders: ["Content-Type"],
     credentials: true
   }
 });
@@ -43,8 +47,7 @@ io.sockets.on('connection', function(socket) {
 
   socket.on('message', function(message) {
     log('Client said: ', message);
-    // For a real app, would be room-only (not broadcast)
-    socket.broadcast.emit('message', message);
+    socket.broadcast.emit('message', message); // Broadcast to other clients
   });
 
   socket.on('create or join', function(room) {
@@ -73,11 +76,13 @@ io.sockets.on('connection', function(socket) {
   socket.on('ipaddr', function() {
     var ifaces = os.networkInterfaces();
     for (var dev in ifaces) {
-      ifaces[dev].forEach(function(details) {
-        if (details.family === 'IPv4' && details.address !== '127.0.0.1') {
-          socket.emit('ipaddr', details.address);
-        }
-      });
+      if (ifaces.hasOwnProperty(dev)) {
+        ifaces[dev].forEach(function(details) {
+          if (details.family === 'IPv4' && details.address !== '127.0.0.1') {
+            socket.emit('ipaddr', details.address);
+          }
+        });
+      }
     }
   });
 
