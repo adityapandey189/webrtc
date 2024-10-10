@@ -4,28 +4,16 @@
       {
         "src": "index.js",
         "use": "@vercel/node"
-      },
-      {
-        "src": "index.html",
-        "use": "@vercel/static"
-      },
-      {
-        "src": "css/main.css",
-        "use": "@vercel/static"
-      },
-      {
-        "src": "js/main.js",
-        "use": "@vercel/static"
       }
     ],
     "routes": [
       {
-        "src": "/",
-        "dest": "/index.html"
+        "src": "/socket.io/(.*)",
+        "dest": "/index.js"
       },
       {
-        "src": "/socket.io",
-        "dest": "/index.js"
+        "src": "/(.*)",
+        "dest": "/index.html"
       }
     ]
   }
