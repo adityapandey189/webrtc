@@ -1,26 +1,24 @@
 'use strict';
 
-const os = require('os');
-const nodeStatic = require('node-static');
-const http = require('http');
-const socketIO = require('socket.io');
+var os = require('os');
+var nodeStatic = require('node-static');
+var http = require('http');
+var socketIO = require('socket.io');
+const cors = require('cors'); 
 const express = require('express');
-const cors = require('cors');
 const port = process.env.PORT || 8000;
 
-// Setup static file server
-const fileServer = new(nodeStatic.Server)();
-const app = express();
+var fileServer = new(nodeStatic.Server)();
 
-// CORS configuration
-app.use(cors({
+var cor = express();
+cor.use(cors({
   origin: '*', // Adjust this to specify which origins are allowed
   methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
   credentials: true // Allow credentials if needed
 }));
 
-// Create HTTP server and serve static files
-const server = http.createServer((req, res) => {
+var app = http.createServer(function(req, res) {
+  // Serve files and handle errors properly
   fileServer.serve(req, res, function(err) {
     if (err) {
       console.error('Error serving ' + req.url + ' - ' + err.message);
@@ -28,57 +26,55 @@ const server = http.createServer((req, res) => {
       res.end();
     }
   });
-});
-
-// Start listening on the specified port
-server.listen(port, () => {
+}).listen(port, () => {
   console.log(`Server is listening on port ${port}`);
 });
 
-// Socket.IO setup
-const io = socketIO(server);
 
-io.on('connection', (socket) => {
+
+var io = socketIO.listen(app);
+io.sockets.on('connection', function(socket) {
+
   // Convenience function to log server messages on the client
   function log() {
-    const array = ['Message from server:'];
+    var array = ['Message from server:'];
     array.push.apply(array, arguments);
     socket.emit('log', array);
   }
 
-  socket.on('message', (message) => {
+  socket.on('message', function(message) {
     log('Client said: ', message);
     // For a real app, would be room-only (not broadcast)
     socket.broadcast.emit('message', message);
   });
 
-  socket.on('create or join', (room) => {
+  socket.on('create or join', function(room) {
     log('Received request to create or join room ' + room);
 
-    const clientsInRoom = io.sockets.adapter.rooms.get(room);
-    const numClients = clientsInRoom ? clientsInRoom.size : 0;
+    var clientsInRoom = io.sockets.adapter.rooms.get(room);
+    var numClients = clientsInRoom ? clientsInRoom.size : 0;
     log('Room ' + room + ' now has ' + numClients + ' client(s)');
 
     if (numClients === 0) {
       socket.join(room);
       log('Client ID ' + socket.id + ' created room ' + room);
       socket.emit('created', room, socket.id);
+
     } else if (numClients === 1) {
       log('Client ID ' + socket.id + ' joined room ' + room);
       io.sockets.in(room).emit('join', room);
       socket.join(room);
       socket.emit('joined', room, socket.id);
       io.sockets.in(room).emit('ready');
-    } else {
-      // Max two clients
+    } else { // max two clients
       socket.emit('full', room);
     }
   });
 
-  socket.on('ipaddr', () => {
-    const ifaces = os.networkInterfaces();
-    for (let dev in ifaces) {
-      ifaces[dev].forEach((details) => {
+  socket.on('ipaddr', function() {
+    var ifaces = os.networkInterfaces();
+    for (var dev in ifaces) {
+      ifaces[dev].forEach(function(details) {
         if (details.family === 'IPv4' && details.address !== '127.0.0.1') {
           socket.emit('ipaddr', details.address);
         }
@@ -86,7 +82,8 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('bye', () => {
+  socket.on('bye', function() {
     console.log('received bye');
   });
+
 });
