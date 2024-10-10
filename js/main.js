@@ -22,7 +22,7 @@ var sdpConstraints = {
 };
 
 var room = 'foo';
-var socket = io.connect();
+var socket = io.connect("https://webrtc-two-eta.vercel.app");
 
 if (room !== '') {
   socket.emit('create or join', room);
