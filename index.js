@@ -1,27 +1,23 @@
-'use strict';
-
-var os = require('os');
-var nodeStatic = require('node-static');
 var http = require('http');
 var socketIO = require('socket.io');
-
-const port = process.env.IP || 8000;
+var nodeStatic = require('node-static');
 
 var fileServer = new(nodeStatic.Server)();
-var app = http.createServer(function(req, res) {
-  fileServer.serve(req, res);
-}).listen(port);
+const cors = require('cors'); 
+const express = require('express'); 
+const app = express();
+const port = process.env.IP || 8000;
 
-// Add CORS configuration
-var io = socketIO.listen(app, {
-  cors: {
-    origin: 'https://webrtc-two-eta.vercel.app', // Your allowed origin
-    methods: ['GET', 'POST'],
-    allowedHeaders: ['my-custom-header'],
-    credentials: true
-  }
-});
+// Enable CORS for all requests
+app.use(cors());
 
+// app.use((req, res, next) => {
+//   res.header("Access-Control-Allow-Origin", "*"); // Replace * with your client URL if needed
+//   res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+//   next();
+// });
+
+var io = socketIO.listen(app);
 io.sockets.on('connection', function(socket) {
 
   // convenience function to log server messages on the client
@@ -60,7 +56,18 @@ io.sockets.on('connection', function(socket) {
     }
   });
 
-  socket.on('bye', function() {
+  // socket.on('ipaddr', function() {
+  //   var ifaces = os.networkInterfaces();
+  //   for (var dev in ifaces) {
+  //     ifaces[dev].forEach(function(details) {
+  //       if (details.family === 'IPv4' && details.address !== '127.0.0.1' && details.address !== '10.10.11.176') {
+  //         socket.emit('ipaddr', details.address);
+  //       }
+  //     });
+  //   }
+  // });
+
+  socket.on('bye', function(){
     console.log('received bye');
   });
 
