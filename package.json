@@ -6,8 +6,8 @@
     "bower": "^1.8.14",
     "cors": "^2.8.5",
     "express": "^4.21.1",
-    "node-static": "^0.7.10",
-    "socket.io": "^2.0.4"
+    "node-static": "^0.7.11",
+    "socket.io": "^2.5.1"
   },
   "scripts": {
     "start": "node index.js"
