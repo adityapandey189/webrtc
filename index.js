@@ -1,7 +1,4 @@
-//working
-
 'use strict';
-
 var os = require('os');
 var nodeStatic = require('node-static');
 var http = require('http');
