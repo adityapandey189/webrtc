@@ -6,23 +6,19 @@ var http = require('http');
 var socketIO = require('socket.io');
 const port = process.env.PORT || 8000;
 
-var fileServer = new(nodeStatic.Server)();
+var fileServer = new nodeStatic.Server();
 var app = http.createServer(function(req, res) {
-  // Prevent headers being set multiple times
-  if (res.headersSent) {
-    console.error('Headers already sent');
-    return;
-  }
-
   // Use a callback for error handling in fileServer.serve
   fileServer.serve(req, res, function(err, result) {
     if (err) {
-      // Ensure headers aren't set twice
+      // Log the error and respond with an error message if headers haven't been sent
+      console.error('Error serving ' + req.url + ' - ' + err.message);
+
+      // Check if headers have already been sent
       if (!res.headersSent) {
-        res.writeHead(err.status, { 'Content-Type': 'text/plain' });
+        res.writeHead(err.status || 500, { 'Content-Type': 'text/plain' });
         res.end('Error serving ' + req.url + ' - ' + err.message);
       }
-      console.error('Error serving ' + req.url + ' - ' + err.message);
     }
   });
 }).listen(port);
@@ -30,8 +26,6 @@ var app = http.createServer(function(req, res) {
 var io = socketIO.listen(app);
 
 io.sockets.on('connection', function(socket) {
-
-  // Convenience function to log server messages on the client
   function log() {
     var array = ['Message from server:'];
     array.push.apply(array, arguments);
@@ -40,13 +34,11 @@ io.sockets.on('connection', function(socket) {
 
   socket.on('message', function(message) {
     log('Client said: ', message);
-    // Broadcasting the message to everyone except the sender
     socket.broadcast.emit('message', message);
   });
 
   socket.on('create or join', function(room) {
     log('Received request to create or join room ' + room);
-
     var clientsInRoom = io.sockets.adapter.rooms.get(room);
     var numClients = clientsInRoom ? clientsInRoom.size : 0;
     log('Room ' + room + ' now has ' + numClients + ' client(s)');
@@ -55,15 +47,13 @@ io.sockets.on('connection', function(socket) {
       socket.join(room);
       log('Client ID ' + socket.id + ' created room ' + room);
       socket.emit('created', room, socket.id);
-
     } else if (numClients === 1) {
+      socket.join(room);
       log('Client ID ' + socket.id + ' joined room ' + room);
       io.sockets.in(room).emit('join', room);
-      socket.join(room);
       socket.emit('joined', room, socket.id);
       io.sockets.in(room).emit('ready');
-    } else { 
-      // Maximum two clients in a room
+    } else {
       socket.emit('full', room);
     }
   });
@@ -79,18 +69,7 @@ io.sockets.on('connection', function(socket) {
     }
   });
 
-  socket.on('bye', function(){
+  socket.on('bye', function() {
     console.log('received bye');
   });
-
-});
-
-// Centralized error handling middleware for the Node.js server
-app.on('error', (err, req, res, next) => {
-  if (res.headersSent) {
-    console.error('Headers were already sent, cannot modify response!', err);
-    return;
-  }
-
-  res.status(500).send('Internal Server Error');
 });
