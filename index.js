@@ -1,30 +1,23 @@
 'use strict';
 
 var os = require('os');
-var nodeStatic = require('node-static');
+var express = require('express');
 var http = require('http');
 var socketIO = require('socket.io');
 const port = process.env.PORT || 8000;
 
-var fileServer = new nodeStatic.Server();
+var app = express();
+var server = http.createServer(app);
 
-var app = http.createServer(function(req, res) {
-  fileServer.serve(req, res, function(err, result) {
-    if (err) {
-      console.error('Error serving ' + req.url + ' - ' + err.message);
-      res.writeHead(err.status, {'Content-Type': 'text/plain'});
-      res.end('Error: ' + err.message);
-    }
-  });
-}).listen(port, () => {
-  console.log(`Server running at port ${port}`);
-});
+// Serve static files from the 'public' directory
+app.use(express.static(__dirname + '/public'));
 
-var io = socketIO.listen(app);
+// Initialize Socket.IO on the server
+var io = socketIO.listen(server);
 
 io.sockets.on('connection', function(socket) {
 
-  // Convenience function to log server messages on the client
+  // convenience function to log server messages on the client
   function log() {
     var array = ['Message from server:'];
     array.push.apply(array, arguments);
@@ -33,7 +26,7 @@ io.sockets.on('connection', function(socket) {
 
   socket.on('message', function(message) {
     log('Client said: ', message);
-    // For a real app, would be room-only (not broadcast)
+    // for a real app, this would be room-only (not broadcast)
     socket.broadcast.emit('message', message);
   });
 
@@ -41,7 +34,7 @@ io.sockets.on('connection', function(socket) {
     log('Received request to create or join room ' + room);
 
     var clientsInRoom = io.sockets.adapter.rooms[room];
-    var numClients = clientsInRoom ? clientsInRoom.length : 0;
+    var numClients = clientsInRoom ? Object.keys(clientsInRoom.sockets).length : 0;
     log('Room ' + room + ' now has ' + numClients + ' client(s)');
 
     if (numClients === 0) {
@@ -71,8 +64,12 @@ io.sockets.on('connection', function(socket) {
     }
   });
 
-  socket.on('bye', function() {
+  socket.on('bye', function(){
     console.log('received bye');
   });
+});
 
+// Start the server
+server.listen(port, function() {
+  console.log('Server is running on port ' + port);
 });
