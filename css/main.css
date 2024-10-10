@@ -1,17 +1,8 @@
-/* Add your styles here */
 body {
-  font-family: Arial, sans-serif;
-  margin: 0;
-  padding: 20px;
-  background-color: #f4f4f4;
-}
-
-#videos {
-  display: flex;
-  justify-content: space-around;
+  font-family: sans-serif;
 }
 
 video {
-  width: 45%;
-  border: 1px solid #000;
+  max-width: 100%;
+  width: 320px;
 }

@@ -4,38 +4,70 @@ var isChannelReady = false;
 var isInitiator = false;
 var isStarted = false;
 var localStream;
-var pcs = {}; // Store multiple PeerConnections
+var pc;
+var remoteStream;
+var turnReady;
+
+var pcConfig = {
+  'iceServers': [{
+    'urls': 'stun:stun.l.google.com:19302'
+  }]
+};
+
+// Set up audio and video regardless of what devices are present.
+var sdpConstraints = {
+  'mandatory': {
+    'OfferToReceiveAudio': true,
+    'OfferToReceiveVideo': true
+  }
+};
+
+/////////////////////////////////////////////
+
 var room = 'foo';
+// Could prompt for room name:
+// room = prompt('Enter room name:');
+
 var socket = io.connect();
 
-// Check if the room is defined and attempt to join
 if (room !== '') {
   socket.emit('create or join', room);
-  console.log('Attempted to create or join room', room);
+  console.log('Attempted to create or  join room', room);
 }
 
-socket.on('created', function (room) {
+socket.on('created', function(room) {
   console.log('Created room ' + room);
   isInitiator = true;
 });
 
-socket.on('full', function (room) {
+socket.on('full', function(room) {
   console.log('Room ' + room + ' is full');
 });
 
-socket.on('join', function (room) {
+socket.on('join', function (room){
   console.log('Another peer made a request to join room ' + room);
   console.log('This peer is the initiator of room ' + room + '!');
   isChannelReady = true;
 });
 
-socket.on('joined', function (room) {
+socket.on('joined', function(room) {
   console.log('joined: ' + room);
   isChannelReady = true;
 });
 
-// Handling messages from the server
-socket.on('message', function (message) {
+socket.on('log', function(array) {
+  console.log.apply(console, array);
+});
+
+////////////////////////////////////////////////
+
+function sendMessage(message) {
+  console.log('Client sending message: ', message);
+  socket.emit('message', message);
+}
+
+// This client receives a message
+socket.on('message', function(message) {
   console.log('Client received message:', message);
   if (message === 'got user media') {
     maybeStart();
@@ -43,63 +75,83 @@ socket.on('message', function (message) {
     if (!isInitiator && !isStarted) {
       maybeStart();
     }
-    pcs[message.peerId].setRemoteDescription(new RTCSessionDescription(message));
-    doAnswer(message.peerId);
+    pc.setRemoteDescription(new RTCSessionDescription(message));
+    doAnswer();
   } else if (message.type === 'answer' && isStarted) {
-    pcs[message.peerId].setRemoteDescription(new RTCSessionDescription(message));
+    pc.setRemoteDescription(new RTCSessionDescription(message));
   } else if (message.type === 'candidate' && isStarted) {
     var candidate = new RTCIceCandidate({
       sdpMLineIndex: message.label,
       candidate: message.candidate
     });
-    pcs[message.peerId].addIceCandidate(candidate);
+    pc.addIceCandidate(candidate);
   } else if (message === 'bye' && isStarted) {
     handleRemoteHangup();
   }
 });
 
-// Getting local media stream
+////////////////////////////////////////////////////
+
+var localVideo = document.querySelector('#localVideo');
+var remoteVideo = document.querySelector('#remoteVideo');
+
 navigator.mediaDevices.getUserMedia({
   audio: true,
   video: true
 })
 .then(gotStream)
-.catch(function (e) {
+.catch(function(e) {
   alert('getUserMedia() error: ' + e.name);
 });
 
 function gotStream(stream) {
   console.log('Adding local stream.');
   localStream = stream;
-  document.querySelector('#localVideo').srcObject = stream;
+  localVideo.srcObject = stream;
   sendMessage('got user media');
   if (isInitiator) {
     maybeStart();
   }
 }
 
+var constraints = {
+  video: true
+};
+
+console.log('Getting user media with constraints', constraints);
+
+if (location.hostname !== 'localhost') {
+  requestTurn(
+    'https://computeengineondemand.appspot.com/turn?username=41784574&key=4080218913'
+  );
+}
+
 function maybeStart() {
   console.log('>>>>>>> maybeStart() ', isStarted, localStream, isChannelReady);
-  if (!isStarted && localStream && isChannelReady) {
-    createPeerConnection(); 
-    pcs[socket.id].addStream(localStream); 
+  if (!isStarted && typeof localStream !== 'undefined' && isChannelReady) {
+    console.log('>>>>>> creating peer connection');
+    createPeerConnection();
+    pc.addStream(localStream);
     isStarted = true;
+    console.log('isInitiator', isInitiator);
     if (isInitiator) {
-      doCall(socket.id);
+      doCall();
     }
   }
 }
 
+window.onbeforeunload = function() {
+  sendMessage('bye');
+};
+
+/////////////////////////////////////////////////////////
+
 function createPeerConnection() {
   try {
-    pcs[socket.id] = new RTCPeerConnection({
-      'iceServers': [{
-        'urls': 'stun:stun.l.google.com:19302'
-      }]
-    });
-    pcs[socket.id].onicecandidate = handleIceCandidate;
-    pcs[socket.id].onaddstream = handleRemoteStreamAdded;
-    pcs[socket.id].onremovestream = handleRemoteStreamRemoved;
+    pc = new RTCPeerConnection(null);
+    pc.onicecandidate = handleIceCandidate;
+    pc.onaddstream = handleRemoteStreamAdded;
+    pc.onremovestream = handleRemoteStreamRemoved;
     console.log('Created RTCPeerConnnection');
   } catch (e) {
     console.log('Failed to create PeerConnection, exception: ' + e.message);
@@ -109,44 +161,99 @@ function createPeerConnection() {
 }
 
 function handleIceCandidate(event) {
+  console.log('icecandidate event: ', event);
   if (event.candidate) {
     sendMessage({
       type: 'candidate',
       label: event.candidate.sdpMLineIndex,
       id: event.candidate.sdpMid,
-      candidate: event.candidate.candidate,
-      peerId: socket.id 
+      candidate: event.candidate.candidate
     });
+  } else {
+    console.log('End of candidates.');
   }
 }
 
-function doCall(peerId) {
-  pcs[peerId].createOffer(setLocalAndSendMessage.bind(null, peerId), handleCreateOfferError);
+function handleCreateOfferError(event) {
+  console.log('createOffer() error: ', event);
 }
 
-function doAnswer(peerId) {
-  pcs[peerId].createAnswer().then(setLocalAndSendMessage.bind(null, peerId), onCreateSessionDescriptionError);
+function doCall() {
+  console.log('Sending offer to peer');
+  pc.createOffer(setLocalAndSendMessage, handleCreateOfferError);
 }
 
-function setLocalAndSendMessage(peerId, sessionDescription) {
-  pcs[peerId].setLocalDescription(sessionDescription);
-  sendMessage({ ...sessionDescription, peerId: peerId });
+function doAnswer() {
+  console.log('Sending answer to peer.');
+  pc.createAnswer().then(
+    setLocalAndSendMessage,
+    onCreateSessionDescriptionError
+  );
+}
+
+function setLocalAndSendMessage(sessionDescription) {
+  pc.setLocalDescription(sessionDescription);
+  console.log('setLocalAndSendMessage sending message', sessionDescription);
+  sendMessage(sessionDescription);
+}
+
+function onCreateSessionDescriptionError(error) {
+  trace('Failed to create session description: ' + error.toString());
+}
+
+function requestTurn(turnURL) {
+  var turnExists = false;
+  for (var i in pcConfig.iceServers) {
+    if (pcConfig.iceServers[i].urls.substr(0, 5) === 'turn:') {
+      turnExists = true;
+      turnReady = true;
+      break;
+    }
+  }
+  if (!turnExists) {
+    console.log('Getting TURN server from ', turnURL);
+    // No TURN server. Get one from computeengineondemand.appspot.com:
+    var xhr = new XMLHttpRequest();
+    xhr.onreadystatechange = function() {
+      if (xhr.readyState === 4 && xhr.status === 200) {
+        var turnServer = JSON.parse(xhr.responseText);
+        console.log('Got TURN server: ', turnServer);
+        pcConfig.iceServers.push({
+          'urls': 'turn:' + turnServer.username + '@' + turnServer.turn,
+          'credential': turnServer.password
+        });
+        turnReady = true;
+      }
+    };
+    xhr.open('GET', turnURL, true);
+    xhr.send();
+  }
 }
 
 function handleRemoteStreamAdded(event) {
-  var remoteVideo = document.createElement('video');
-  remoteVideo.srcObject = event.stream;
-  document.body.appendChild(remoteVideo);
+  console.log('Remote stream added.');
+  remoteStream = event.stream;
+  remoteVideo.srcObject = remoteStream;
 }
 
 function handleRemoteStreamRemoved(event) {
   console.log('Remote stream removed. Event: ', event);
 }
 
-function sendMessage(message) {
-  socket.emit('message', message);
+function hangup() {
+  console.log('Hanging up.');
+  stop();
+  sendMessage('bye');
 }
 
-window.onbeforeunload = function () {
-  sendMessage('bye');
-};
+function handleRemoteHangup() {
+  console.log('Session terminated.');
+  stop();
+  isInitiator = false;
+}
+
+function stop() {
+  isStarted = false;
+  pc.close();
+  pc = null;
+}
