@@ -8,7 +8,17 @@ const port = process.env.PORT || 8000;
 
 var fileServer = new(nodeStatic.Server)();
 var app = http.createServer(function(req, res) {
-  fileServer.serve(req, res);
+  // Use a callback for error handling in fileServer.serve
+  fileServer.serve(req, res, function(err, result) {
+    if (err) {
+      // Only attempt to send a response if headers haven't already been sent
+      if (!res.headersSent) {
+        res.writeHead(err.status, { 'Content-Type': 'text/plain' });
+        res.end('Error serving ' + req.url + ' - ' + err.message);
+      }
+      console.error('Error serving ' + req.url + ' - ' + err.message);
+    }
+  });
 }).listen(port);
 
 var io = socketIO.listen(app);
