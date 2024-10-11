@@ -17,7 +17,7 @@ var app = http.createServer(function(req, res) {
       
       // Ensure headers haven't already been sent
       if (!res.headersSent) {
-        res.writeHead(err.status || 500, { 'Content-Type': 'text/plain' });
+     //   res.writeHead(err.status || 500, { 'Content-Type': 'text/plain' });
         res.end('An error occurred: ' + err.message);
         return; // Prevent further code execution
       }
