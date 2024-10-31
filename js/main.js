@@ -7,6 +7,7 @@ var localStream;
 var pc;
 var remoteStream;
 var turnReady;
+var dataChannel;  // Added data channel variable
 
 var pcConfig = {
   'iceServers': [{
@@ -18,7 +19,8 @@ var pcConfig = {
 var sdpConstraints = {
   'mandatory': {
     'OfferToReceiveAudio': true,
-    'OfferToReceiveVideo': true
+    'OfferToReceiveVideo': true,
+    'RtpDataChannels'    : true
   }
 };
 
@@ -153,11 +155,44 @@ function createPeerConnection() {
     pc.onaddstream = handleRemoteStreamAdded;
     pc.onremovestream = handleRemoteStreamRemoved;
     console.log('Created RTCPeerConnnection');
+    
+    // Create data channel if initiator
+    if (isInitiator) {
+      dataChannel = pc.createDataChannel('sendDataChannel');
+      setupDataChannel(dataChannel);
+    } else {
+      pc.ondatachannel = function(event) {
+        dataChannel = event.channel;
+        setupDataChannel(dataChannel);
+      };
+    }
+
   } catch (e) {
     console.log('Failed to create PeerConnection, exception: ' + e.message);
     alert('Cannot create RTCPeerConnection object.');
     return;
   }
+}
+
+function setupDataChannel(channel) {
+  console.log('Data channel created!');
+  channel.binaryType = 'arraybuffer';  
+  channel.onopen = function() {
+    console.log('Data channel opened');
+  };
+  
+  channel.onmessage = function(event) {
+    console.log('Received data: ', event.data);
+    // Handle received byte buffer (event.data)
+  };
+  
+  channel.onerror = function(error) {
+    console.error('Data channel error:', error);
+  };
+
+  channel.onclose = function() {
+    console.log('Data channel closed');
+  };
 }
 
 function handleIceCandidate(event) {

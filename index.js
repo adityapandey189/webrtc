@@ -1,45 +1,32 @@
 'use strict';
+
 var os = require('os');
 var nodeStatic = require('node-static');
 var http = require('http');
 var socketIO = require('socket.io');
 const port = process.env.PORT || 8000;
 
-// File server to serve static files
-var fileServer = new nodeStatic.Server();
-
-// Create the HTTP server
+var fileServer = new(nodeStatic.Server)();
 var app = http.createServer(function(req, res) {
-  // Serve files and handle errors properly
-  fileServer.serve(req, res, function(err) {
-    if (err) {
-      console.error('Error serving ' + req.url + ' - ' + err.message);
-      
-      // Ensure headers haven't already been sent
-      if (!res.headersSent) {
-     //   res.writeHead(err.status || 500, { 'Content-Type': 'text/plain' });
-        res.end('An error occurred: ' + err.message);
-        return; // Prevent further code execution
-      }
-    }
-  });
-}).listen(port, () => {
-  console.log(`Server is listening on port ${port}`);
-});
-
-// Initialize socket.io with CORS options
-var io = socketIO(app, {
-  cors: {
-    origin: "*", // Allow any origin
-    methods: ["GET", "POST"],
-    allowedHeaders: ["Content-Type"],
-    credentials: true
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*'); // Allow all origins (you can specify your allowed origins here)
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    res.writeHead(204);
+    return res.end();
   }
-});
 
+  fileServer.serve(req, res);
+}).listen(port);
+
+var io = socketIO.listen(app);
 io.sockets.on('connection', function(socket) {
-
-  // Convenience function to log server messages on the client
+  console.log('A client connected with socket ID:', socket.id);
+  console.log('Connection details:', socket.handshake);
+  // convenience function to log server messages on the client
   function log() {
     var array = ['Message from server:'];
     array.push.apply(array, arguments);
@@ -48,14 +35,15 @@ io.sockets.on('connection', function(socket) {
 
   socket.on('message', function(message) {
     log('Client said: ', message);
-    socket.broadcast.emit('message', message); // Broadcast to other clients
+    // for a real app, would be room-only (not broadcast)
+    socket.broadcast.emit('message', message);
   });
 
   socket.on('create or join', function(room) {
     log('Received request to create or join room ' + room);
 
-    var clientsInRoom = io.sockets.adapter.rooms.get(room);
-    var numClients = clientsInRoom ? clientsInRoom.size : 0;
+    var clientsInRoom = io.sockets.adapter.rooms[room];
+    var numClients = clientsInRoom ? Object.keys(clientsInRoom.sockets).length : 0;
     log('Room ' + room + ' now has ' + numClients + ' client(s)');
 
     if (numClients === 0) {
@@ -77,17 +65,15 @@ io.sockets.on('connection', function(socket) {
   socket.on('ipaddr', function() {
     var ifaces = os.networkInterfaces();
     for (var dev in ifaces) {
-      if (ifaces.hasOwnProperty(dev)) {
-        ifaces[dev].forEach(function(details) {
-          if (details.family === 'IPv4' && details.address !== '127.0.0.1') {
-            socket.emit('ipaddr', details.address);
-          }
-        });
-      }
+      ifaces[dev].forEach(function(details) {
+        if (details.family === 'IPv4' && details.address !== '127.0.0.1' && details.address !== '192.168.214.20') {
+          socket.emit('ipaddr', details.address);
+        }
+      });
     }
   });
 
-  socket.on('bye', function() {
+  socket.on('bye', function(){
     console.log('received bye');
   });
 
