@@ -1,5 +1,5 @@
 'use strict';
-
+require("dotenv").config();
 var os = require('os');
 var nodeStatic = require('node-static');
 var http = require('http');
@@ -64,17 +64,36 @@ io.sockets.on('connection', function(socket) {
 
   socket.on('ipaddr', function() {
     var ifaces = os.networkInterfaces();
-    for (var dev in ifaces) {
-      ifaces[dev].forEach(function(details) {
-        if (details.family === 'IPv4' && details.address !== '127.0.0.1' && details.address !== '10.10.11.115') {
-          socket.emit('ipaddr', details.address);
-        }
-      });
-    }
+  
+    getPublicIp((publicIp) => {
+      for (var dev in ifaces) {
+        ifaces[dev].forEach(function(details) {
+          if (details.family === 'IPv4' && details.address !== '127.0.0.1' && details.address !== publicIp) {
+            socket.emit('ipaddr', details.address);
+          }
+        });
+      }
+    });
   });
+  
 
   socket.on('bye', function(){
     console.log('received bye');
   });
 
 });
+
+
+function getPublicIp(callback) {
+  http.get('http://169.254.169.254/latest/meta-data/public-ipv4', (res) => {
+    let ip = '';
+    res.on('data', (chunk) => {
+      ip += chunk;
+    });
+    res.on('end', () => {
+      callback(ip);
+    });
+  }).on('error', (e) => {
+    console.error(`Failed to retrieve public IP: ${e.message}`);
+  });
+}
